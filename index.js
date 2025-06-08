@@ -4,8 +4,11 @@ import bodyParser from "body-parser";
 import cors from "cors";
 import Adminrouter from "./Routes/UserRoutes.js";
 import orderrouter from "./Routes/ordersRoute.js";
+import dotenv from "dotenv";
+
+dotenv.config();
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT;
 
 app.use(bodyParser.json());
 app.use(express.urlencoded({ extended: true }));
