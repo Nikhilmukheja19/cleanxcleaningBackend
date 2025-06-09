@@ -1,4 +1,9 @@
+import nodemailer from "nodemailer";
+
 import OrderModel from "../Models/OrderModel.js";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 export const orderSave = async (req, res) => {
   const generateOrderId = () => Math.floor(1000 + Math.random() * 9000);
@@ -71,5 +76,40 @@ export const fetchOrder = async (req, res) => {
   } catch (error) {
     console.error("Error saving order:", error);
     res.status(500).json({ error: "Server error saving order" });
+  }
+};
+export const sendmail = async (req, res) => {
+  const { fullName, email, dateTime } = req.body;
+
+  try {
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    const mailOptions = {
+      from: `"Canex Cleaning" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: "Canex Booking Confirmation",
+      html: `
+        <h2>Hi ${fullName},</h2>
+        <p>Thank you for choosing <strong>Canex Cleaning</strong>!</p>
+        <p>Your booking has been confirmed for <strong>${dateTime.toLocaleString()}</strong>.</p>
+        <p>Service: <strong>${fullName}</strong></p>
+        <p>We will contact you shortly at ${dateTime}.</p>
+        <br/>
+        <p>Regards,<br/>Team Canex Cleaning</p>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.status(200).json({ message: "Booking confirmed. Email sent!" });
+  } catch (err) {
+    console.error("Error sending email:", err);
+    res.status(500).json({ error: "Failed to send confirmation email" });
   }
 };
