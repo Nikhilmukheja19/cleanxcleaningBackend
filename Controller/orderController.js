@@ -113,3 +113,38 @@ export const sendmail = async (req, res) => {
     res.status(500).json({ error: "Failed to send confirmation email" });
   }
 };
+export const contactMail = async (req, res) => {
+  const { email, message, phone, name } = req.body;
+
+  try {
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    const mailOptions = {
+      from: `"Canex Cleaning Client" <${email}>`,
+      to: `${process.env.EMAIL_USER}`,
+      subject: `Customer From Contact us - ${name}`,
+      html: `
+        <h2>Hi Canex Cleaning</h2>
+        <h4>Name : <strong>${name}</strong></h4>
+        <p>Email : <strong>${email}</strong></p>
+        <p>Mobile Number : <strong>${phone}</strong></p>
+        <p>Message : <strong>${message}</strong></p>
+        <br/>
+        <p>Regards,<br/>${name}</p>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.status(200).json({ message: "Email sent!" });
+  } catch (err) {
+    console.error("Error sending email:", err);
+    res.status(500).json({ error: "Failed to send contact email" });
+  }
+};
