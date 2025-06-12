@@ -153,35 +153,36 @@ export const updateOrderStatus = async (req, res) => {
   try {
     const { orderId } = req.params;
 
-    const updatedOrder = await OrderModel.findOneAndUpdate(
-      { orderId },
-      { $set: { status: "Fulfilled" } },
-      { new: true }
-    );
+    const order = await OrderModel.findOne({ orderId });
 
-    if (!updatedOrder) {
+    if (!order) {
       return res.status(404).json({ error: "Order not found." });
     }
 
-    // Send confirmation email using Nodemailer
+    // Toggle status
+    const newStatus = order.status === "Pending" ? "Fulfilled" : "Pending";
+    order.status = newStatus;
+    const updatedOrder = await order.save();
+
+    // Send email using Nodemailer
     const transporter = nodemailer.createTransport({
-      service: "gmail", // or 'hotmail', 'yahoo', etc.
+      service: "gmail",
       auth: {
-        user: process.env.EMAIL_USER, // your email
-        pass: process.env.EMAIL_PASS, // your app password
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
       },
     });
 
     const mailOptions = {
       from: `"Canex Cleaning" <${process.env.EMAIL_USER}>`,
       to: updatedOrder.email,
-      subject: `Your Order #${updatedOrder.orderId} is Fulfilled`,
+      subject: `Your Order #${updatedOrder.orderId} is ${newStatus}`,
       html: `
         <div style="font-family: Arial, sans-serif; line-height: 1.5;">
           <h2>Hi ${updatedOrder.fullName},</h2>
           <p>Your order <strong>#${
             updatedOrder.orderId
-          }</strong> has been successfully <b>Fulfilled</b>.</p>
+          }</strong> status has been updated to <b>${newStatus}</b>.</p>
           <p><b>Service Date & Time:</b> ${new Date(
             updatedOrder.dateTime
           ).toLocaleString("en-IN", {
@@ -198,7 +199,6 @@ export const updateOrderStatus = async (req, res) => {
       `,
     };
 
-    // Send the email
     transporter.sendMail(mailOptions, (err, info) => {
       if (err) {
         console.error("Error sending email:", err);
@@ -208,7 +208,7 @@ export const updateOrderStatus = async (req, res) => {
     });
 
     res.status(200).json({
-      message: "Order marked as Fulfilled and email sent.",
+      message: `Order status changed to ${newStatus} and email sent.`,
       order: updatedOrder,
     });
   } catch (error) {
