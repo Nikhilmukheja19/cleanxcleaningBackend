@@ -148,3 +148,71 @@ export const contactMail = async (req, res) => {
     res.status(500).json({ error: "Failed to send contact email" });
   }
 };
+
+export const updateOrderStatus = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+
+    const updatedOrder = await OrderModel.findOneAndUpdate(
+      { orderId },
+      { $set: { status: "Fulfilled" } },
+      { new: true }
+    );
+
+    if (!updatedOrder) {
+      return res.status(404).json({ error: "Order not found." });
+    }
+
+    // Send confirmation email using Nodemailer
+    const transporter = nodemailer.createTransport({
+      service: "gmail", // or 'hotmail', 'yahoo', etc.
+      auth: {
+        user: process.env.EMAIL_USER, // your email
+        pass: process.env.EMAIL_PASS, // your app password
+      },
+    });
+
+    const mailOptions = {
+      from: `"Canex Cleaning" <${process.env.EMAIL_USER}>`,
+      to: updatedOrder.email,
+      subject: `Your Order #${updatedOrder.orderId} is Fulfilled`,
+      html: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.5;">
+          <h2>Hi ${updatedOrder.fullName},</h2>
+          <p>Your order <strong>#${
+            updatedOrder.orderId
+          }</strong> has been successfully <b>Fulfilled</b>.</p>
+          <p><b>Service Date & Time:</b> ${new Date(
+            updatedOrder.dateTime
+          ).toLocaleString("en-IN", {
+            dateStyle: "medium",
+            timeStyle: "short",
+          })}</p>
+          <p><b>Address:</b> ${updatedOrder.street}, ${updatedOrder.city}, ${
+        updatedOrder.state
+      } - ${updatedOrder.zip}</p>
+          <br />
+          <p>Thank you for choosing <strong>Canex Cleaning</strong>.</p>
+          <p>Best regards,<br />Canex Team</p>
+        </div>
+      `,
+    };
+
+    // Send the email
+    transporter.sendMail(mailOptions, (err, info) => {
+      if (err) {
+        console.error("Error sending email:", err);
+      } else {
+        console.log("Email sent:", info.response);
+      }
+    });
+
+    res.status(200).json({
+      message: "Order marked as Fulfilled and email sent.",
+      order: updatedOrder,
+    });
+  } catch (error) {
+    console.error("Error updating order:", error);
+    res.status(500).json({ error: "Server error updating order" });
+  }
+};
