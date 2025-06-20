@@ -1,5 +1,5 @@
 {
-  "name": "_backend",
+  "name": "canex_backend",
   "version": "1.0.0",
   "description": "A Cleaning Company",
   "main": "index.js",
