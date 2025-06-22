@@ -12,6 +12,7 @@ const orderSchema = new mongoose.Schema(
     city: { type: String, required: true },
     state: { type: String, required: true },
     zip: { type: String, required: true },
+    serviceType: { type: String, required: true },
     status: { type: String, default: "Pending" },
     createdAt: { type: Date, default: Date.now },
   },

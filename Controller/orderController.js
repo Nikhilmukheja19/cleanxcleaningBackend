@@ -8,8 +8,17 @@ dotenv.config();
 export const orderSave = async (req, res) => {
   const generateOrderId = () => Math.floor(1000 + Math.random() * 9000);
   try {
-    const { fullName, email, phone, dateTime, street, city, state, zip } =
-      req.body;
+    const {
+      fullName,
+      email,
+      phone,
+      dateTime,
+      street,
+      city,
+      state,
+      zip,
+      serviceType,
+    } = req.body;
     console.log(req.body);
     const parsedDate = new Date(dateTime);
     if (
@@ -20,6 +29,7 @@ export const orderSave = async (req, res) => {
       !street ||
       !city ||
       !state ||
+      !serviceType ||
       !zip
     ) {
       return res.status(400).json({ error: "All fields are required." });
@@ -35,6 +45,7 @@ export const orderSave = async (req, res) => {
       city,
       state,
       zip,
+      serviceType,
       status: "Pending",
     });
 
@@ -58,6 +69,7 @@ export const orderSave = async (req, res) => {
         city: savedOrder.city,
         state: savedOrder.state,
         zip: savedOrder.zip,
+        serviceType: savedOrder.serviceType,
       },
       status: savedOrder.status,
     };
