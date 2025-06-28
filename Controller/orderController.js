@@ -91,7 +91,7 @@ export const fetchOrder = async (req, res) => {
   }
 };
 export const sendmail = async (req, res) => {
-  const { fullName, email, dateTime } = req.body;
+  const { fullName, email, dateTime, serviceType } = req.body;
 
   try {
     const transporter = nodemailer.createTransport({
@@ -110,8 +110,8 @@ export const sendmail = async (req, res) => {
         <h2>Hi ${fullName},</h2>
         <p>Thank you for choosing <strong>Canex Cleaning</strong>!</p>
         <p>Your booking has been confirmed for <strong>${dateTime.toLocaleString()}</strong>.</p>
-        <p>Service: <strong>${fullName}</strong></p>
-        <p>We will contact you shortly at ${dateTime}.</p>
+        <p>Service: <strong>${serviceType}</strong></p>
+        <p>We will contact you shortly.</p>
         <br/>
         <p>Regards,<br/>Team Canex Cleaning</p>
       `,
