@@ -7,6 +7,7 @@ dotenv.config();
 
 export const orderSave = async (req, res) => {
   const generateOrderId = () => Math.floor(1000 + Math.random() * 9000);
+  console.log(req.body);
   try {
     const {
       fullName,
@@ -73,7 +74,7 @@ export const orderSave = async (req, res) => {
       },
       status: savedOrder.status,
     };
-
+  
     res.status(201).json(response);
   } catch (error) {
     console.error("Error saving order:", error);
