@@ -6,13 +6,14 @@ import {
   sendmail,
   updateOrderStatus,
 } from "../Controller/orderController.js";
+import { authMiddleware } from "../Middleware/authMiddleware.js";
 
 const orderrouter = express.Router();
 
 orderrouter.post("/orderSaved", orderSave);
-orderrouter.get("/fetchOrder", fetchOrder);
+orderrouter.get("/fetchOrder", authMiddleware, fetchOrder);
 orderrouter.post("/sendmail", sendmail);
 orderrouter.post("/getmail", contactMail);
-orderrouter.post("/orderUpdatemail/:orderId", updateOrderStatus);
+orderrouter.patch("/orderUpdatemail/:orderId", authMiddleware, updateOrderStatus);
 
 export default orderrouter;

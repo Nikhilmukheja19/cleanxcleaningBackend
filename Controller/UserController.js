@@ -1,20 +1,25 @@
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import User from "../Models/AdminUser.js";
+import dotenv from "dotenv";
 
-const JWT_SECRET = "Nweewdfdqvdwqw";
+dotenv.config();
+const JWT_SECRET = process.env.JWT_SECRET;
 
 export const register = async (req, res) => {
   try {
     const { name, email, password } = req.body;
+    const normalizedEmail = email?.trim().toLowerCase();
 
     // Validate input
-    if (!name || !email || !password) {
-      return res.status(400).json({ message: "All fields are required" });
+    if (!name?.trim() || !normalizedEmail || !password || password.length < 8) {
+      return res
+        .status(400)
+        .json({ message: "Name, email and a password of at least 8 characters are required" });
     }
 
     // Check if user already exists
-    const isEmailExist = await User.findOne({ email });
+    const isEmailExist = await User.findOne({ email: normalizedEmail });
     if (isEmailExist) {
       return res.status(409).json({ message: "User already exists" });
     }
@@ -25,7 +30,7 @@ export const register = async (req, res) => {
     // Create and save user
     const newUser = new User({
       name,
-      email,
+      email: normalizedEmail,
       password: hashedPassword,
     });
 
@@ -41,18 +46,19 @@ export const register = async (req, res) => {
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
+    const normalizedEmail = email?.trim().toLowerCase();
 
     // Basic validation
-    if (!email || !password) {
+    if (!normalizedEmail || !password) {
       return res
         .status(400)
         .json({ message: "Email and password are required" });
     }
 
     // Find user
-    const userExist = await User.findOne({ email });
+    const userExist = await User.findOne({ email: normalizedEmail });
     if (!userExist) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(401).json({ message: "Invalid credentials" });
     }
 
     // Compare password

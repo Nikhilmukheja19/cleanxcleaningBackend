@@ -7,7 +7,6 @@ dotenv.config();
 
 export const orderSave = async (req, res) => {
   const generateOrderId = () => Math.floor(1000 + Math.random() * 9000);
-  console.log(req.body);
   try {
     const {
       fullName,
@@ -20,7 +19,6 @@ export const orderSave = async (req, res) => {
       zip,
       serviceType,
     } = req.body;
-    console.log(req.body);
     const parsedDate = new Date(dateTime);
     if (
       !fullName ||
@@ -31,9 +29,11 @@ export const orderSave = async (req, res) => {
       !city ||
       !state ||
       !serviceType ||
-      !zip
+      !zip ||
+      Number.isNaN(parsedDate.getTime()) ||
+      parsedDate.getTime() < Date.now()
     ) {
-      return res.status(400).json({ error: "All fields are required." });
+      return res.status(400).json({ error: "Please provide all fields and a future date." });
     }
 
     const newOrder = new OrderModel({
@@ -51,8 +51,6 @@ export const orderSave = async (req, res) => {
     });
 
     const savedOrder = await newOrder.save();
-    console.log(savedOrder);
-
     // Format the response
     const response = {
       orderId: savedOrder.orderId,
@@ -84,11 +82,21 @@ export const orderSave = async (req, res) => {
 
 export const fetchOrder = async (req, res) => {
   try {
-    const allOrders = await OrderModel.find({}).sort({ dateTime: -1 });
-    res.status(200).json(allOrders);
+    const page = Math.max(Number.parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 20, 1), 100);
+    const filter = req.query.status ? { status: req.query.status } : {};
+    const [orders, total] = await Promise.all([
+      OrderModel.find(filter)
+        .sort({ dateTime: 1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean(),
+      OrderModel.countDocuments(filter),
+    ]);
+    res.status(200).json({ orders, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
   } catch (error) {
-    console.error("Error saving order:", error);
-    res.status(500).json({ error: "Server error saving order" });
+    console.error("Error fetching orders:", error);
+    res.status(500).json({ error: "Server error fetching orders" });
   }
 };
 export const sendmail = async (req, res) => {
@@ -103,6 +111,10 @@ export const sendmail = async (req, res) => {
       },
     });
 
+    const formattedDate = new Date(dateTime).toLocaleString("en-IN", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
     const mailOptions = {
       from: `"Canex Cleaning" <${process.env.EMAIL_USER}>`,
       to: email,
@@ -110,7 +122,7 @@ export const sendmail = async (req, res) => {
       html: `
         <h2>Hi ${fullName},</h2>
         <p>Thank you for choosing <strong>Canex Cleaning</strong>!</p>
-        <p>Your booking has been confirmed for <strong>${dateTime.toLocaleString()}</strong>.</p>
+        <p>Your booking has been confirmed for <strong>${formattedDate}</strong>.</p>
         <p>Service: <strong>${serviceType}</strong></p>
         <p>We will contact you shortly.</p>
         <br/>
@@ -165,37 +177,41 @@ export const contactMail = async (req, res) => {
 export const updateOrderStatus = async (req, res) => {
   try {
     const { orderId } = req.params;
+    const { status } = req.body;
+    const allowedStatuses = ["Pending", "Confirmed", "In Progress", "Fulfilled", "Cancelled"];
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({ error: "Invalid order status." });
+    }
 
-    const order = await OrderModel.findOne({ orderId });
+    const order = await OrderModel.findOne({ orderId: Number(orderId) });
 
     if (!order) {
       return res.status(404).json({ error: "Order not found." });
     }
 
-    // Toggle status
-    const newStatus = order.status === "Pending" ? "Fulfilled" : "Pending";
-    order.status = newStatus;
+    order.status = status;
     const updatedOrder = await order.save();
 
-    // Send email using Nodemailer
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
+    let emailSent = false;
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+      const transporter = nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS,
+        },
+      });
 
-    const mailOptions = {
-      from: `"Canex Cleaning" <${process.env.EMAIL_USER}>`,
-      to: updatedOrder.email,
-      subject: `Your Order #${updatedOrder.orderId} is ${newStatus}`,
-      html: `
+      const mailOptions = {
+        from: `"Canex Cleaning" <${process.env.EMAIL_USER}>`,
+        to: updatedOrder.email,
+        subject: `Your Order #${updatedOrder.orderId} is ${status}`,
+        html: `
         <div style="font-family: Arial, sans-serif; line-height: 1.5;">
           <h2>Hi ${updatedOrder.fullName},</h2>
           <p>Your order <strong>#${
             updatedOrder.orderId
-          }</strong> status has been updated to <b>${newStatus}</b>.</p>
+          }</strong> status has been updated to <b>${status}</b>.</p>
           <p><b>Service Date & Time:</b> ${new Date(
             updatedOrder.dateTime
           ).toLocaleString("en-IN", {
@@ -209,20 +225,19 @@ export const updateOrderStatus = async (req, res) => {
           <p>Thank you for choosing <strong>Canex Cleaning</strong>.</p>
           <p>Best regards,<br />Canex Team</p>
         </div>
-      `,
-    };
+        `,
+      };
 
-    transporter.sendMail(mailOptions, (err, info) => {
-      if (err) {
-        console.error("Error sending email:", err);
-      } else {
-        console.log("Email sent:", info.response);
-      }
-    });
+      await transporter.sendMail(mailOptions);
+      emailSent = true;
+    }
 
     res.status(200).json({
-      message: `Order status changed to ${newStatus} and email sent.`,
+      message: emailSent
+        ? `Order status changed to ${status} and the customer was notified.`
+        : `Order status changed to ${status}. Email notifications are not configured.`,
       order: updatedOrder,
+      emailSent,
     });
   } catch (error) {
     console.error("Error updating order:", error);

@@ -13,7 +13,11 @@ const orderSchema = new mongoose.Schema(
     state: { type: String, required: true },
     zip: { type: String, required: true },
     serviceType: { type: String, required: true },
-    status: { type: String, default: "Pending" },
+    status: {
+      type: String,
+      enum: ["Pending", "Confirmed", "In Progress", "Fulfilled", "Cancelled"],
+      default: "Pending",
+    },
     createdAt: { type: Date, default: Date.now },
   },
   { timestamps: true }
